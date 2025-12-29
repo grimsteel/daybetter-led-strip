@@ -4,9 +4,10 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "daybetter-led-strip"
-version = "0.1.1"
+version = "0.1.2"
 dependencies = [
-    "bleak"
+    "bleak",
+    "bleak-retry-connector"
 ]
 authors = [
     { name="Siddhant Kameswar", email="61r7jw39@kameswar.com" }

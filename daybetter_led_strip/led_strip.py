@@ -6,6 +6,7 @@ from bleak.backends.characteristic import BleakGATTCharacteristic
 from bleak.backends.scanner import AdvertisementData
 from bleak.backends.device import BLEDevice
 from bleak.exc import BleakError
+from bleak_retry_connector import BleakClientWithServiceCache, establish_connection
 
 from .const import CHAR_LED_CONTROL, CHAR_LED_STATUS, SERVICE_GENERIC_ACCESS_PROFILE, SERVICE_LED_CONTROL
 from .util import modbus
@@ -59,12 +60,13 @@ class DaybetterLedStrip:
         if self.device is None:
             return
 
-        self.client = BleakClient(
+        self.client = await establish_connection(
+            BleakClientWithServiceCache,
             self.device,
+            self.device.name or "Unknown Device",
             disconnected_callback=self._on_disconnected,
-            services=[SERVICE_GENERIC_ACCESS_PROFILE, SERVICE_LED_CONTROL]
+            services=[SERVICE_GENERIC_ACCESS_PROFILE, SERVICE_LED_CONTROL],
         )
-        await self.client.connect()
         if self.client is not None:
             await self.client.start_notify(CHAR_LED_STATUS, self._on_status_char_update)
             self._trigger_listeners()
