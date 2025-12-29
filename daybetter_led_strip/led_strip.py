@@ -10,7 +10,7 @@ from bleak.exc import BleakError
 from .const import CHAR_LED_CONTROL, CHAR_LED_STATUS, SERVICE_GENERIC_ACCESS_PROFILE, SERVICE_LED_CONTROL
 from .util import modbus
 
-_LOGGER = logging.Logger(__name__)
+_LOGGER = logging.getLogger(__name__)
 
 RgbColor = tuple[int, int, int]
 Listener = Callable[[], None]
@@ -33,7 +33,7 @@ class DaybetterLedStrip:
     color: RgbColor | None = None
     brightness: int | None = None
 
-    listeners: list[Listener]
+    listeners: list[Listener] = []
 
     def __init__(self, address: str):
         self.address = address
@@ -65,8 +65,9 @@ class DaybetterLedStrip:
             services=[SERVICE_GENERIC_ACCESS_PROFILE, SERVICE_LED_CONTROL]
         )
         await self.client.connect()
-        await self.client.start_notify(CHAR_LED_STATUS, self._on_status_char_update)
-        self._trigger_listeners()
+        if self.client is not None:
+            await self.client.start_notify(CHAR_LED_STATUS, self._on_status_char_update)
+            self._trigger_listeners()
 
     async def disconnect(self):
         """Manually disconnect the BleakClient"""
@@ -78,9 +79,6 @@ class DaybetterLedStrip:
         if self.client.is_connected:
             await self.client.stop_notify(CHAR_LED_STATUS)
             await self.client.disconnect()
-
-        self.client = None
-        self._trigger_listeners()
 
     async def _write_led_control(self, payload: bytes):
         """Write the given payload to the LED control characteristic.
@@ -105,9 +103,9 @@ class DaybetterLedStrip:
         # 15 06 RR GG BB
         payload = bytes([0x15, 0x06, r & 0xFF, g & 0xFF, b & 0xFF])
 
-        await self._write_led_control(payload)
         # will be committed to self.color when acked
         self.pending_color = new_color
+        await self._write_led_control(payload)
 
     async def set_brightness(self, new_brightness: int):
         """Attempt to configure the brightness of the lights. Value should be between 0 and 100 (0x00 and 0x64)."""
@@ -117,17 +115,17 @@ class DaybetterLedStrip:
 
         # 13 04 brightness
         payload = bytes([0x13, 0x04, new_brightness & 0xFF])
-        await self._write_led_control(payload)
         # will be committed to self.brightness when acked
         self.pending_brightness = new_brightness
+        await self._write_led_control(payload)
 
     async def set_power(self, on: bool):
         """Attempt to turn the lights on or off."""
         # 11 04 00 = off, 01 = on
         payload = bytes([0x11, 0x04, 0x01 if on else 0x00])
-        await self._write_led_control(payload)
         # will be committed to self.power when acked
         self.pending_power = on
+        await self._write_led_control(payload)
 
     async def _on_status_char_update(self, _char: BleakGATTCharacteristic, data: bytearray):
         # power change - sent when changed from IR remote
@@ -151,7 +149,7 @@ class DaybetterLedStrip:
                     self.brightness = self.pending_brightness
                     self.pending_brightness = None
                     self._trigger_listeners()
-            elif data[1] == 0x15 and data[2] == 0x06:
+            elif data[1] == 0x15 and data[2] == 0x04:
                 # Commit pending color
                 if self.pending_color is not None:
                     self.color = self.pending_color
@@ -159,6 +157,8 @@ class DaybetterLedStrip:
                     self._trigger_listeners()
 
     def _on_disconnected(self, _old_client: BleakClient):
+        _LOGGER.warning("Device disconnected")
+
         # not async - can't do much here
         self.client = None
         self._trigger_listeners()

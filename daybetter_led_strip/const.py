@@ -10,3 +10,6 @@ SERVICE_LED_CONTROL = normalize_uuid_16(0xe031)
 CHAR_LED_CONTROL = normalize_uuid_16(0xa031)
 # "read", notify
 CHAR_LED_STATUS = normalize_uuid_16(0xf031)
+
+# Advertised service
+SERVICE_DISCOVERY = normalize_uuid_16(0xc031)
