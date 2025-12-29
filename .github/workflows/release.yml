@@ -1,0 +1,41 @@
+name: Publish package to PyPI
+on:
+    push:
+        tags:
+          - "v*.*"
+jobs:
+    build:
+        name: Build package
+        runs-on: ubuntu-latest
+        steps:
+        - uses: actions/checkout@v6
+        - uses: actions/setup-python@v6
+          with:
+              python-version: "3.x"
+        - name: Install build tools
+          run: python3 -m pip install build --user
+        - name: Build wheel and source
+          run: python3 -m build
+        - name: Store artifacts
+          uses: actions/upload-artifact@v5
+          with:
+              name: python-package-distributions
+              path: dist/
+    publish:
+        name: Publish package to PyPI
+        needs:
+        - build
+        runs-on: ubuntu-latest
+        environment:
+            name: pypi
+            url: https://pypi.org/p/daybetter-led-strip
+        permissions:
+            id-token: write
+        steps:
+        - name: Download artifacts
+          uses: actions/download-artifact@v6
+          with:
+              name: python-package-distributions
+              path: dist/
+        - name: Publish
+          uses: pypa/gh-action-pypi-publish@release/v1

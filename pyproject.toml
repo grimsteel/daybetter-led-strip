@@ -1,0 +1,21 @@
+[build-system]
+requires = ["setuptools"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "daybetter-led-strip"
+version = "0.1.1"
+dependencies = [
+    "bleak"
+]
+authors = [
+    { name="Siddhant Kameswar", email="61r7jw39@kameswar.com" }
+]
+description = "Control Daybetter RGB LED strips over BLE"
+license = "MIT"
+license-files = ["LICENSE"]
+readme = "README.md"
+
+[project.urls]
+Homepage = "https://github.com/grimsteel/daybetter-led-strip"
+Issues = "https://github.com/grimsteel/daybetter-led-strip/issues"
