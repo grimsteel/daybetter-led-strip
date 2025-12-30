@@ -1,5 +1,10 @@
 # daybetter-led-strip
 
+![GitHub License](https://img.shields.io/github/license/grimsteel/daybetter-led-strip)
+![GitHub Actions Workflow Status](https://img.shields.io/github/actions/workflow/status/grimsteel/daybetter-led-strip/release.yml)
+[![PyPI - Version](https://img.shields.io/pypi/v/daybetter-led-strip)](https://pypi.org/project/daybetter-led-strip)
+
+
 Python package to control Daybetter RGB LED strips over BLE. Uses [`bleak`](https://bleak.readthedocs.io/en/latest/index.html).
 
 ## Installation
@@ -97,18 +102,19 @@ Running the "get status" command also results in this being sent.
 > Note: the brightness can be changed during the following effects. Lower brightnesses result in blinking happening faster, likely because there is a smaller range of brightnesses to interpolate between.
 
 RGB: just red/green/blue
+
 All preset colors: red/green/blue/yellow/teal/purple/white
 
-`0x02..0x08`: show preset colors
-`0x09`: switch RGB abruptly, no transition
-`0x0A`: switch all preset colors
-`0x0B`: fade between colors quickly
-`0x0C`: fade between colors slowly
-`0x0D`..`0x13`: blink individual preset colors
-`0x14`: fade red/green
-`0x15`: fade red/blue
-`0x16`: fade green/blue
-`0x17`: flash all preset colors
-`0x18`..`0x1E`: flash individual preset colors
-`0x1F`: strobe RGB
-`0x20`: strobe all colors
+* `0x02..0x08`: show preset colors
+* `0x09`: switch RGB abruptly, no transition
+* `0x0A`: switch all preset colors
+* `0x0B`: fade between colors quickly
+* `0x0C`: fade between colors slowly
+* `0x0D`..`0x13`: blink individual preset colors
+* `0x14`: fade red/green
+* `0x15`: fade red/blue
+* `0x16`: fade green/blue
+* `0x17`: flash all preset colors
+* `0x18`..`0x1E`: flash individual preset colors
+* `0x1F`: strobe RGB
+* `0x20`: strobe all colors
