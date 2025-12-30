@@ -148,8 +148,6 @@ class DaybetterLedStrip:
         await self._write_led_control(COMMAND_POWER, payload)
 
     async def _on_status_char_update(self, _char: BleakGATTCharacteristic, data: bytearray):
-        print(data)
-
         # power change - sent when changed from IR remote
         # A1 10 11 [00|01] CRC
         if len(data) >= 4 and data[0] == 0xA1 and data[1] == 0x10 and data[2] == 0x11:
