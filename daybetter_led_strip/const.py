@@ -13,3 +13,8 @@ CHAR_LED_STATUS = normalize_uuid_16(0xf031)
 
 # Advertised service
 SERVICE_DISCOVERY = normalize_uuid_16(0xc031)
+
+# GATT command ID
+COMMAND_BRIGHTNESS = 0x13
+COMMAND_POWER = 0x11
+COMMAND_COLOR = 0x15

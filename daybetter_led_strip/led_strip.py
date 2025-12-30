@@ -1,4 +1,5 @@
 import logging
+import traceback
 from typing import cast, Callable
 
 from bleak import BleakClient
@@ -8,7 +9,7 @@ from bleak.backends.device import BLEDevice
 from bleak.exc import BleakError
 from bleak_retry_connector import BleakClientWithServiceCache, establish_connection
 
-from .const import CHAR_LED_CONTROL, CHAR_LED_STATUS, SERVICE_GENERIC_ACCESS_PROFILE, SERVICE_LED_CONTROL
+from .const import CHAR_LED_CONTROL, CHAR_LED_STATUS, COMMAND_BRIGHTNESS, COMMAND_COLOR, COMMAND_POWER, SERVICE_GENERIC_ACCESS_PROFILE, SERVICE_LED_CONTROL
 from .util import modbus
 
 _LOGGER = logging.getLogger(__name__)
@@ -64,13 +65,17 @@ class DaybetterLedStrip:
         if self.device is None:
             return
 
-        self.client = await establish_connection(
-            BleakClientWithServiceCache,
-            self.device,
-            self.device.name or "Unknown Device",
-            disconnected_callback=self._on_disconnected,
-            services=[SERVICE_GENERIC_ACCESS_PROFILE, SERVICE_LED_CONTROL],
-        )
+        try:
+            self.client = await establish_connection(
+                BleakClientWithServiceCache,
+                self.device,
+                self.device.name or "Unknown Device",
+                disconnected_callback=self._on_disconnected,
+                services=[SERVICE_GENERIC_ACCESS_PROFILE, SERVICE_LED_CONTROL],
+            )
+        except Exception:
+            traceback.print_exc()
+            self.client = None
         if self.client is not None:
             await self.client.start_notify(CHAR_LED_STATUS, self._on_status_char_update)
 
@@ -85,15 +90,17 @@ class DaybetterLedStrip:
             await self.client.stop_notify(CHAR_LED_STATUS)
             await self.client.disconnect()
 
-    async def _write_led_control(self, payload: bytes):
+    async def _write_led_control(self, command: int, payload: bytes):
         """Write the given payload to the LED control characteristic.
-        Prepends A0 and appends checksum to the payload.
+        Prepends the header and appends checksum to the payload.
         """
         if not self.connected:
             _LOGGER.warning("Cannot write characteristic: not connected to device")
             return
 
-        full_payload = bytes([0xA0]) + payload
+        # leading byte + command + length + payload + checksum not included
+        length = 3 + len(payload)
+        full_payload = bytes([0xA0, command & 0xff, length & 0xff]) + payload
         full_payload += modbus(full_payload)  # checksum
 
         try:
@@ -105,12 +112,12 @@ class DaybetterLedStrip:
         """Attempt to configure the current color of the lights. Will not turn on if currently off"""
 
         r, g, b = new_color
-        # 15 06 RR GG BB
-        payload = bytes([0x15, 0x06, r & 0xFF, g & 0xFF, b & 0xFF])
+        # RR GG BB
+        payload = bytes([r & 0xFF, g & 0xFF, b & 0xFF])
 
         # will be committed to self.color when acked
         self.pending_color = new_color
-        await self._write_led_control(payload)
+        await self._write_led_control(COMMAND_COLOR, payload)
 
     async def set_brightness(self, new_brightness: int):
         """Attempt to configure the brightness of the lights. Value should be between 0 and 100 (0x00 and 0x64)."""
@@ -118,21 +125,23 @@ class DaybetterLedStrip:
             _LOGGER.warning("Brightness value %d out of range (0-100)", new_brightness)
             return
 
-        # 13 04 brightness
-        payload = bytes([0x13, 0x04, new_brightness & 0xFF])
+        # between 00 and 64
+        payload = bytes([new_brightness & 0xFF])
         # will be committed to self.brightness when acked
         self.pending_brightness = new_brightness
-        await self._write_led_control(payload)
+        await self._write_led_control(COMMAND_BRIGHTNESS, payload)
 
     async def set_power(self, on: bool):
         """Attempt to turn the lights on or off."""
-        # 11 04 00 = off, 01 = on
-        payload = bytes([0x11, 0x04, 0x01 if on else 0x00])
+        # 00 = off, 01 = on
+        payload = bytes([0x01 if on else 0x00])
         # will be committed to self.power when acked
         self.pending_power = on
-        await self._write_led_control(payload)
+        await self._write_led_control(COMMAND_POWER, payload)
 
     async def _on_status_char_update(self, _char: BleakGATTCharacteristic, data: bytearray):
+        print(data)
+
         # power change - sent when changed from IR remote
         # A1 10 11 [00|01] CRC
         if len(data) >= 4 and data[0] == 0xA1 and data[1] == 0x10 and data[2] == 0x11:
