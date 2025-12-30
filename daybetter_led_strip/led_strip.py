@@ -46,6 +46,8 @@ class DaybetterLedStrip:
             _LOGGER.warning("Updated device address %s does not match original address %s", device.address, self.address)
 
         was_connected = self.connected
+        if self.connected:
+            await self.disconnect()
 
         self.device = device
         self.advertisment_data = advertisment_data
@@ -53,6 +55,8 @@ class DaybetterLedStrip:
         # attempt reconnect with new device
         if not was_connected and device is not None:
             await self.connect()
+
+        self._trigger_listeners()
 
     async def connect(self):
         """Initialize the BleakClient"""
@@ -69,7 +73,6 @@ class DaybetterLedStrip:
         )
         if self.client is not None:
             await self.client.start_notify(CHAR_LED_STATUS, self._on_status_char_update)
-            self._trigger_listeners()
 
     async def disconnect(self):
         """Manually disconnect the BleakClient"""
