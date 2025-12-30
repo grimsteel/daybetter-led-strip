@@ -9,7 +9,7 @@ from bleak.backends.device import BLEDevice
 from bleak.exc import BleakError
 from bleak_retry_connector import BleakClientWithServiceCache, establish_connection
 
-from .const import CHAR_LED_CONTROL, CHAR_LED_STATUS, COMMAND_BRIGHTNESS, COMMAND_COLOR, COMMAND_POWER, SERVICE_GENERIC_ACCESS_PROFILE, SERVICE_LED_CONTROL
+from .const import CHAR_LED_CONTROL, CHAR_LED_STATUS, COMMAND_BRIGHTNESS, COMMAND_COLOR, COMMAND_EFFECT, COMMAND_POWER, SERVICE_GENERIC_ACCESS_PROFILE, SERVICE_LED_CONTROL, Effect
 from .util import modbus
 
 _LOGGER = logging.getLogger(__name__)
@@ -29,11 +29,13 @@ class DaybetterLedStrip:
     pending_power: bool | None = None
     pending_color: RgbColor | None = None
     pending_brightness: int | None = None
+    pending_effect: Effect | None = None
 
     # current state
     power: bool | None = None
     color: RgbColor | None = None
     brightness: int | None = None
+    effect: Effect | None = None
 
     listeners: list[Listener] = []
 
@@ -131,6 +133,12 @@ class DaybetterLedStrip:
         self.pending_brightness = new_brightness
         await self._write_led_control(COMMAND_BRIGHTNESS, payload)
 
+    async def set_effect(self, effect: Effect):
+        """Attempt to put the light into one of the preset effect modes."""
+        payload = bytes([effect.value & 0xff])
+        self.pending_effect = effect
+        await self._write_led_control(COMMAND_EFFECT, payload)
+
     async def set_power(self, on: bool):
         """Attempt to turn the lights on or off."""
         # 00 = off, 01 = on
@@ -149,25 +157,35 @@ class DaybetterLedStrip:
             self._trigger_listeners()
 
         # ack - sent after we send a command - change state and trigger listeners
-        # A1 XX XX 01 CRC
+        # A1 XX 04 01 CRC
         if len(data) >= 4 and data[0] == 0xA1 and data[3] == 0x01:
-            if data[1] == 0x11 and data[2] == 0x04:
+            if data[1] == COMMAND_POWER:
                 # Commit pending power
                 if self.pending_power is not None:
                     self.power = self.pending_power
                     self.pending_power = None
                     self._trigger_listeners()
-            elif data[1] == 0x13 and data[2] == 0x04:
+            elif data[1] == COMMAND_EFFECT:
+                # Commit pending effect
+                if self.pending_effect is not None:
+                    self.effect = self.pending_effect
+                    self.pending_effect = None
+                    # effect clears color
+                    self.color = None
+                    self._trigger_listeners()
+            elif data[1] == COMMAND_BRIGHTNESS:
                 # Commit pending brightness
                 if self.pending_brightness is not None:
                     self.brightness = self.pending_brightness
                     self.pending_brightness = None
                     self._trigger_listeners()
-            elif data[1] == 0x15 and data[2] == 0x04:
+            elif data[1] == COMMAND_COLOR:
                 # Commit pending color
                 if self.pending_color is not None:
                     self.color = self.pending_color
                     self.pending_color = None
+                    # color clears effect
+                    self.effect = None
                     self._trigger_listeners()
 
     def _on_disconnected(self, _old_client: BleakClient):

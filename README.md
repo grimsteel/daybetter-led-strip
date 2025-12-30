@@ -38,7 +38,7 @@ await led_strip.disconnect()
 
 A complete example program is provided in `examples/test.py`.
 
-This package was created for use in Home Assistant, which may explain some of the API choices.
+This package was created [for use in Home Assistant](https://github.com/grimsteel/homeassistant-daybetter-led-strip), which may explain some of the API choices.
 
 ## Protocol
 
