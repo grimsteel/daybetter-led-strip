@@ -10,11 +10,10 @@ from bleak.exc import BleakError
 from bleak_retry_connector import BleakClientWithServiceCache, establish_connection
 
 from .const import CHAR_LED_CONTROL, CHAR_LED_STATUS, COMMAND_BRIGHTNESS, COMMAND_COLOR, COMMAND_EFFECT, COMMAND_POWER, SERVICE_GENERIC_ACCESS_PROFILE, SERVICE_LED_CONTROL, Effect
-from .util import modbus
+from .util import correct_color, modbus, RgbColor
 
 _LOGGER = logging.getLogger(__name__)
 
-RgbColor = tuple[int, int, int]
 Listener = Callable[[], None]
 
 class DaybetterLedStrip:
@@ -110,10 +109,12 @@ class DaybetterLedStrip:
         except BleakError as e:
             _LOGGER.error("Failed to write characteristic: %s", e)
 
-    async def set_color(self, new_color: RgbColor):
+    async def set_color(self, new_color: RgbColor, color_correction = True):
         """Attempt to configure the current color of the lights. Will not turn on if currently off"""
 
         r, g, b = new_color
+        if color_correction:
+            r, g, b = correct_color(new_color)
         # RR GG BB
         payload = bytes([r & 0xFF, g & 0xFF, b & 0xFF])
 
